@@ -81,6 +81,7 @@ class MyClient(discord.Client):
                         f"channel: {message.channel}")
 
             if verify_message(message):
+                LOGGER.info(f"A price notification was received from the bot.")
                 price = get_price_from_message(message)
 
                 #  Send price to Trading Bot
