@@ -27,41 +27,44 @@ logging.basicConfig(format=FORMAT, datefmt='%m/%d/%Y %H:%M:%S')
 def get_price_from_message(message):
     try:
         LOGGER.debug("Entering get_price_from_message()\n"
-                     f"discord_message: {message.content}\n"
-                     f"discord_author: {message.author}\n"
-                     f"discord_channel: {message.channel}")
+                     f"discord_message: {message}\n")
 
-        price = re.findall(r"[-+]?(?:\d*\.*\d+)", f"{message.content}")
+        price = re.findall(r"[-+]?(?:\d*\.*\d+)", f"{message}")
         if len(price) > 0:
-
             LOGGER.info(f"The price was retrieved from the message. price: {price[0]}")
 
             return float(price[0])
+
     except Exception as ex:
         message = f"Error in get_price_from_message(): {ex}"
         raise Exception(message)
 
 
+#  Will check if the message came from the appropriate channel and from the bot.
+#  If it
 def verify_message(message):
     try:
         LOGGER.debug("Entering verify_message()\n"
                            f"discord_message: {str(message.content)}\n"
+                           f"discord_embed: {str(message.embeds[0].description) if len(message.embeds) else None}\n"
                            f"discord_author: {str(message.author)}\n"
                            f"discord_channel: {str(message.channel)}")
 
         channel = str(message.channel)
         author = str(message.author)
-        content = str(message.content)
 
         #  Check if the message came from the notifications channel
         if channel == DISCORD_NOTIFICATIONS_CHANNEL and (
                 author == DISCORD_NOTIFICATIONS_BOT or DISCORD_NOTIFICATIONS_DISABLE_VERIFY_BOT is True):
-            #  Check if the bot is giving a valid trade notification
-            if "NDX" in content:
-                LOGGER.info(f"A price notification was received from the bot.")
-                return True
 
-        return False
+            #  Check if the bot is giving a valid trade notification. The bot
+            #  uses 'embeds' to put the price notification into the chat.
+            if len(message.embeds) > 0:
+                content = message.embeds[0].description
+                if "NDX" in content:
+                    return content
+        return None
+
     except Exception as ex:
         message = f"Error in verify_message(): {ex}"
         raise Exception(message)
@@ -75,12 +78,15 @@ class MyClient(discord.Client):
     async def on_message(self, message):
         try:
 
-            LOGGER.debug(f"Message received from discord.\n"
+            LOGGER.debug(f"Entering on_message()\n"
                         f"content: {message.content}\n"
+                        f"discord_embed: {str(message.embeds[0].description) if len(message.embeds) else None}\n"
                         f"author: {message.author}\n"
                         f"channel: {message.channel}")
 
-            if verify_message(message):
+            #  Check if the message is a notification from the bot
+            message = verify_message(message)
+            if message:
                 LOGGER.info(f"A price notification was received from the bot.")
                 price = get_price_from_message(message)
 
