@@ -13,6 +13,8 @@ DISCORD_NOTIFICATIONS_BOT = str(os.environ['DISCORD_NOTIFICATIONS_BOT'])
 DISCORD_NOTIFICATIONS_DISABLE_VERIFY_BOT = bool(int(os.environ['DISCORD_NOTIFICATIONS_DISABLE_VERIFY_BOT']))
 DISCORD_TOKEN = str(os.environ['DISCORD_TOKEN'])
 
+TRADING_BOT_API = str(os.environ['TRADING_BOT_API'])
+
 LOGGER = logging.getLogger('discord-logger')
 LOGGER.setLevel(logging.DEBUG)
 
@@ -91,7 +93,7 @@ class MyClient(discord.Client):
                 price = get_price_from_message(message)
 
                 #  Send price to Trading Bot
-                url = f'https://bts-trading-bot-886bd351757e.herokuapp.com/notify?price={price}'
+                url = f'{TRADING_BOT_API}/notify?price={price}'
                 response = requests.post(url)
 
                 if response.status_code != 200:
