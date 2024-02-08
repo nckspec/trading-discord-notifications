@@ -13,7 +13,7 @@ DISCORD_NOTIFICATIONS_BOT = str(os.environ['DISCORD_NOTIFICATIONS_BOT'])
 DISCORD_NOTIFICATIONS_DISABLE_VERIFY_BOT = bool(int(os.environ['DISCORD_NOTIFICATIONS_DISABLE_VERIFY_BOT']))
 DISCORD_TOKEN = str(os.environ['DISCORD_TOKEN'])
 
-TRADING_BOT_API = str(os.environ['TRADING_BOT_API'])
+TRADING_BOT_API_URLS = str(os.environ['TRADING_BOT_API_URLS']).split(",")
 
 LOGGER = logging.getLogger('discord-logger')
 LOGGER.setLevel(logging.DEBUG)
@@ -71,7 +71,18 @@ def verify_message(message):
         message = f"Error in verify_message(): {ex}"
         raise Exception(message)
 
+#  Sends a price notification to the bot's api endpoint with the specified base url
+def send_price_notification(url, price):
+    #  Send price to Trading Bot
+    url = f'{url}/notify?price={price}'
+    response = requests.post(url)
 
+    if response.status_code == 200:
+        LOGGER.info(f"Successfully sent price to trading bot!\n"
+                    f"trading bot api url: {url}")
+    else:
+        raise Exception(f"Could not send price to the trading bot!\n"
+                        f"trading bot api url: {url}")
 
 class MyClient(discord.Client):
     async def on_ready(self):
@@ -92,14 +103,16 @@ class MyClient(discord.Client):
                 LOGGER.info(f"A price notification was received from the bot.")
                 price = get_price_from_message(message)
 
-                #  Send price to Trading Bot
-                url = f'{TRADING_BOT_API}/notify?price={price}'
-                response = requests.post(url)
+                #  Send a price notification to each trading bot that is setup
+                for url in TRADING_BOT_API_URLS:
+                    try:
+                        send_price_notification(url, price)
+                    except Exception as ex:
+                        LOGGER.error(f"Unable to send price notification to trading bot!\n"
+                                     f"trading bot api url: {url}\n"
+                                     f"Exception: {ex}")
 
-                if response.status_code != 200:
-                    raise Exception(f"Could not send price to the trading bot!")
-
-                LOGGER.info(f"Successfully sent price to the trading bot!")
+                LOGGER.info(f"Successfully sent price to the trading bots!")
         except Exception as ex:
             message = f"Error in MyClient.on_message(): {ex}"
             raise Exception(message)
