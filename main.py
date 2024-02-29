@@ -5,6 +5,7 @@ import logging
 import graypy
 import requests
 import time
+import threading
 
 LOGGER_HOST = str(os.environ['LOGGER_HOST'])
 LOGGER_PORT = int(os.environ['LOGGER_PORT'])
@@ -73,16 +74,26 @@ def verify_message(message):
 
 #  Sends a price notification to the bot's api endpoint with the specified base url
 def send_price_notification(url, price):
-    #  Send price to Trading Bot
-    url = f'{url}/notify?price={price}'
-    response = requests.post(url)
+    try:
+        #  Create a new thread to send the price notification so that we can send
+        #  out many price notifications quickly
+        def thread(url, price):
+            #  Send price to Trading Bot
+            url = f'{url}/notify?price={price}'
+            response = requests.post(url)
 
-    if response.status_code == 200:
-        LOGGER.info(f"Successfully sent price to trading bot!\n"
-                    f"trading bot api url: {url}")
-    else:
-        raise Exception(f"Could not send price to the trading bot!\n"
-                        f"trading bot api url: {url}")
+            if response.status_code == 200:
+                LOGGER.info(f"Successfully sent price to trading bot!\n"
+                            f"trading bot api url: {url}")
+            else:
+                raise Exception(f"Could not send price to the trading bot!\n"
+                                f"trading bot api url: {url}")
+
+        x = threading.Thread(target=thread, args=(url, price))
+        x.start()
+    except Exception as ex:
+        message = f"Error in send_price_notification(): {ex}"
+        raise Exception(message)
 
 class MyClient(discord.Client):
     async def on_ready(self):
