@@ -45,7 +45,6 @@ except Exception as ex:
         LOGGER.error(message)
         raise message
 
-
 class MyClient(discord.Client):
     async def on_ready(self):
         print(f'Logged on as {self.user}!')
