@@ -115,7 +115,7 @@ def send_price_notification(url, price):
         #  out many price notifications quickly
         def thread(url, price):
             #  Send price to Trading Bot
-            url = f'{url}/notify?price={price}'
+            url = f'{url}/notify/?price={price}'
             response = requests.post(url)
 
             if response.status_code == 200:
