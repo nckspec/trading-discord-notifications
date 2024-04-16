@@ -65,10 +65,11 @@ def mark_price_notification_received(redis: redis.Redis, price):
 #  Extracts the price from the Discord message as a float
 def get_price_from_message(message):
     try:
+        content = message.embeds[0].description
         LOGGER.debug("Entering get_price_from_message()\n"
-                     f"discord_message: {message}\n")
+                     f"content: {content}\n")
 
-        price = re.findall(r"[-+]?(?:\d*\.*\d+)", f"{message}")
+        price = re.findall(r"[-+]?(?:\d*\.*\d+)", f"{content}")
         if len(price) > 0:
             LOGGER.info(f"The price was retrieved from the message. price: {price[0]}")
 
@@ -80,10 +81,9 @@ def get_price_from_message(message):
 
 
 #  Will check if the message came from the appropriate channel and from the bot.
-#  If it
-def verify_message(message):
+def verify_price_notification(message):
     try:
-        LOGGER.debug("Entering verify_message()\n"
+        LOGGER.debug("Entering verify_price_notification()\n"
                            f"discord_message: {str(message.content)}\n"
                            f"discord_embed: {str(message.embeds[0].description) if len(message.embeds) else None}\n"
                            f"discord_author: {str(message.author)}\n"
@@ -101,11 +101,11 @@ def verify_message(message):
             if len(message.embeds) > 0:
                 content = message.embeds[0].description
                 if "NDX" in content:
-                    return content
-        return None
+                    return True
+        return False
 
     except Exception as ex:
-        message = f"Error in verify_message(): {ex}"
+        message = f"Error in verify_price_notification(): {ex}"
         raise Exception(message)
 
 #  Sends a price notification to the bot's api endpoint with the specified base url

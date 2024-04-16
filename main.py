@@ -59,8 +59,7 @@ class MyClient(discord.Client):
                         f"channel: {message.channel}")
 
             #  Check if the message is a notification from the bot
-            message = functions.verify_message(message)
-            if message:
+            if functions.verify_price_notification(message) is True:
                 LOGGER.info(f"A price notification was received from the NDX bot.")
                 price = functions.get_price_from_message(message)
 
@@ -83,6 +82,7 @@ class MyClient(discord.Client):
                 else:
                     LOGGER.warning(f"A price notification was already received today. "
                                    f"The price notification will not be relayed to the trading bots.")
+
         except Exception as ex:
             message = f"Error in MyClient.on_message(): {ex}"
             raise Exception(message)
