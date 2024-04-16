@@ -83,6 +83,12 @@ class MyClient(discord.Client):
                     LOGGER.warning(f"A price notification was already received today. "
                                    f"The price notification will not be relayed to the trading bots.")
 
+            #  If the message is a PM to the bot. The we query the trading bot
+            if isinstance(message.channel, discord.DMChannel) and message.author != self.user:
+                #  Send the command to the trading bot
+                response = functions.send_command_to_trading_bot(str(message.author), message.content)
+                await message.author.send(response)
+
         except Exception as ex:
             message = f"Error in MyClient.on_message(): {ex}"
             raise Exception(message)

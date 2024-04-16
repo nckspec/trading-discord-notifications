@@ -12,7 +12,7 @@ LOGGER = logging.getLogger('discord-logger')
 DISCORD_NOTIFICATIONS_CHANNEL = str(os.environ['DISCORD_NOTIFICATIONS_CHANNEL'])
 DISCORD_NOTIFICATIONS_BOT = str(os.environ['DISCORD_NOTIFICATIONS_BOT'])
 DISCORD_NOTIFICATIONS_DISABLE_VERIFY_BOT = bool(int(os.environ['DISCORD_NOTIFICATIONS_DISABLE_VERIFY_BOT']))
-
+TRADING_BOT_URL = str(os.environ['TRADING_BOT_URL'])
 
 #  Will convert the date to ooc format. Must input a date() object and
 #  will return a string in ooc format
@@ -130,3 +130,91 @@ def send_price_notification(url, price):
     except Exception as ex:
         message = f"Error in send_price_notification(): {ex}"
         raise Exception(message)
+
+
+def update_user_account(discord_username, parameter, value):
+    endpoint = TRADING_BOT_URL + "/accounts/update/"
+
+    #  format the proper json for the /accounts/update endpoint
+    data = {
+        "discord_username": discord_username,
+        "command": "set",
+        "parameter": {
+            "name": parameter,
+            "value": value
+        }
+    }
+
+    response = requests.post(endpoint, json=data)
+    return response.json()['message']
+
+
+def get_help():
+    #  format a response that entails all a user needs to run commands on their account
+    response = f"Commands:\n" \
+               f"'info' - This command will return the current settings of your account.\n\n" \
+               f"'set' [Toggle] [Value] - This command will allow you to set a specific setting on your account.\n\n" \
+               f"Here is a list of available settings: \n" \
+               f"\n'entry_offset' - This setting will control how much lower or higher your spread will be from the" \
+               f"alert notification.\n" \
+               f"Example: 'set entry_offset -40' will make it so your account will trade at 40 points below the alert.\n" \
+               f"\n'minimum_account_balance' - This setting will allow you to control the minimum balance your account" \
+               f" must be at before it increases contracts from 1.\n" \
+               f"Example: 'set minimum_account_balance 7000' will make it so your account will trade only 1 contract if" \
+               f" the account balance is below $7000.\n" \
+               f"\n'contract_coefficient'  -  This is the amount of money that equates to 1 contract being traded on your account." \
+               f" This by default is set to $5000. This means that your account will trade 3 contracts if you have a balance of " \
+               f"$15,000.\n" \
+               f"Example: 'set contract_coefficient 3500' will make it so that your account will trade 10 contracts if your " \
+               f"account balance is $35,000."
+    return response
+
+def get_account_info(discord_username):
+    #  call the /accounts/get endpoint. Get the json and format it into a readable response
+    endpoint = f"{TRADING_BOT_URL}/accounts/get/?username={discord_username}"
+
+    response = requests.get(endpoint)
+
+    if response.status_code == 200:
+
+        response = response.json()
+
+        account_info = f"Account Info:"
+        for key in response:
+            account_info = account_info + f"\n{key} - {response[key]}"
+
+        return account_info
+    elif response.status_code == 201:
+        return response.json()['message']
+    else:
+        return None
+
+
+
+def send_command_to_trading_bot(discord_username, command):
+    response = ""
+
+    #  Split the command by spaces
+    command = command.split()
+
+
+    #  Check if first word is 'set'
+    #  if so, check if there are three words total, then perform an update
+    if command[0] == "set" and len(command) == 3:
+        response = update_user_account(discord_username, command[1], command[2])
+
+
+    #  if word is help, then return a tutorial.
+    elif command[0] == "help" and len(command) == 1:
+        response = get_help()
+
+
+    #  if word is info then return the account info
+    elif command[0] == "info" and len(command) == 1:
+        response = get_account_info(discord_username)
+
+
+    else:
+        response = f"That is not a valid command. Please type 'help' into the chat for instructions."
+
+    return response
