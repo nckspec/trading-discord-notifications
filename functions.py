@@ -133,6 +133,7 @@ def send_price_notification(url, price):
 
 
 def update_user_account(discord_username, toggle, value):
+    success = False
     endpoint = TRADING_BOT_URL + "/accounts/update/set"
 
     #  format the proper json for the /accounts/update endpoint
@@ -143,7 +144,13 @@ def update_user_account(discord_username, toggle, value):
     }
 
     response = requests.post(endpoint, json=data)
-    return response.json()['message']
+
+    if response.status_code == 200:
+        success = True
+    else:
+        success = False
+
+    return success, response.json()['message']
 
 
 def get_help():
@@ -190,15 +197,19 @@ def get_account_info(discord_username):
 
 def send_command_to_trading_bot(discord_username, command):
     response = ""
+    success = False
 
-    #  Split the command by spaces
-    command = command.split()
+    #  make the command lowercase and split the command by spaces
+    command = command.lower().split()
 
 
     #  Check if first word is 'set'
     #  if so, check if there are three words total, then perform an update
     if command[0] == "set" and len(command) == 3:
-        response = update_user_account(discord_username, command[1], command[2])
+        #  Capitalize true/false so that the endpoint can insert it directly into field
+        if command[2] == "true" or command[2] == "false":
+            command[2] = command[2].capitalize()
+        success, response = update_user_account(discord_username, command[1], command[2])
 
 
     #  if word is help, then return a tutorial.
@@ -210,6 +221,15 @@ def send_command_to_trading_bot(discord_username, command):
     elif command[0] == "info" and len(command) == 1:
         response = get_account_info(discord_username)
 
+    elif command[0] == "activate" and len(command) == 1:
+        success, response = update_user_account(discord_username, "activated", "True")
+        if success:
+            response = "The bot has been activated."
+
+    elif command[0] == "deactivate" and len(command) == 1:
+        success, response = update_user_account(discord_username, "activated", "False")
+        if success:
+            response = "The bot has been deactivated."
 
     else:
         response = f"That is not a valid command. Please type 'help' into the chat for instructions."
