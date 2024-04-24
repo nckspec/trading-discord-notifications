@@ -6,6 +6,7 @@ import redis
 import os
 import datetime
 import pytz
+import discord
 
 LOGGER = logging.getLogger('discord-logger')
 
@@ -171,11 +172,13 @@ def get_help():
                f"$15,000.\n" \
                f"Example: 'set contract_coefficient 3500' will make it so that your account will trade 10 contracts if your " \
                f"account balance is $35,000."
+
     return response
 
 def get_account_info(discord_username):
     #  call the /accounts/get endpoint. Get the json and format it into a readable response
     endpoint = f"{TRADING_BOT_URL}/accounts/get/?username={discord_username}"
+    account_info = ""
 
     response = requests.get(endpoint)
 
@@ -183,11 +186,19 @@ def get_account_info(discord_username):
 
         response = response.json()
 
-        account_info = f"**Account Info:**"
+        #  Generate account info in the proper format
         for key in response:
-            account_info = account_info + f"\n{key}: {response[key]}"
+            account_info = account_info + f"- **{key}:** {response[key]}\n"
 
-        return account_info
+        account_info = account_info.rstrip()
+
+        response = discord.Embed(
+            title=f"Account Info - {response['brokerage_username']} - {response['brokerage_account_id']}",
+            description="Here is the current toggles set on your trading bot.", color=0x00ff00)
+        response.add_field(name="Toggles", value=account_info)
+
+        return response
+
     elif response.status_code == 201:
         return response.json()['message']
     else:
@@ -201,7 +212,6 @@ def send_command_to_trading_bot(discord_username, command):
 
     #  make the command lowercase and split the command by spaces
     command = command.lower().split()
-
 
     #  Check if first word is 'set'
     #  if so, check if there are three words total, then perform an update
@@ -222,29 +232,41 @@ def send_command_to_trading_bot(discord_username, command):
             #  If the command was not successful, append the help message below it
             if not success:
                 response = response + f"\n{help}"
+            else:
+                response = {
+                    "content": response,
+                    "embed": get_account_info(discord_username)
+                }
 
         else:
             response = help
-
 
     #  if word is help, then return a tutorial.
     elif command[0] == "help" and len(command) == 1:
         response = get_help()
 
-
     #  if word is info then return the account info
     elif command[0] == "info" and len(command) == 1:
-        response = get_account_info(discord_username)
+        response = {
+            "content": None,
+            "embed": get_account_info(discord_username)
+        }
 
     elif command[0] == "activate" and len(command) == 1:
         success, response = update_user_account(discord_username, "activated", "True")
         if success:
-            response = "The bot has been activated."
+            response = {
+                "content": "The bot has been activated.\n\n",
+                "embed": get_account_info(discord_username)
+            }
 
     elif command[0] == "deactivate" and len(command) == 1:
         success, response = update_user_account(discord_username, "activated", "False")
         if success:
-            response = "The bot has been deactivated."
+            response = {
+                "content": "The bot has been deactivated.\n\n",
+                "embed": get_account_info(discord_username)
+            }
 
     else:
         response = f"That is not a valid command. Please type 'help' into the chat for instructions."
