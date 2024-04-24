@@ -132,17 +132,14 @@ def send_price_notification(url, price):
         raise Exception(message)
 
 
-def update_user_account(discord_username, parameter, value):
-    endpoint = TRADING_BOT_URL + "/accounts/update/"
+def update_user_account(discord_username, toggle, value):
+    endpoint = TRADING_BOT_URL + "/accounts/update/set"
 
     #  format the proper json for the /accounts/update endpoint
     data = {
         "discord_username": discord_username,
-        "command": "set",
-        "parameter": {
-            "name": parameter,
-            "value": value
-        }
+        "toggle": toggle,
+        "value": value
     }
 
     response = requests.post(endpoint, json=data)
