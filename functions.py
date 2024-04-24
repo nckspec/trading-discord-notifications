@@ -183,9 +183,9 @@ def get_account_info(discord_username):
 
         response = response.json()
 
-        account_info = f"Account Info:"
+        account_info = f"**Account Info:**"
         for key in response:
-            account_info = account_info + f"\n{key} - {response[key]}"
+            account_info = account_info + f"\n{key}: {response[key]}"
 
         return account_info
     elif response.status_code == 201:
