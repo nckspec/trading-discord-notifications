@@ -151,27 +151,38 @@ def update_user_account(discord_username, toggle, value):
     else:
         success = False
 
-    return success, response.json()['message']
+    response = response.json()['message']
+    response = f"**{response}**"
+
+    return success, response
 
 
 def get_help():
-    #  format a response that entails all a user needs to run commands on their account
-    response = f"Commands:\n" \
-               f"'info' - This command will return the current settings of your account.\n\n" \
-               f"'set' [Toggle] [Value] - This command will allow you to set a specific setting on your account.\n\n" \
-               f"Here is a list of available settings: \n" \
-               f"\n'entry_offset' - This setting will control how much lower or higher your spread will be from the" \
-               f"alert notification.\n" \
-               f"Example: 'set entry_offset -40' will make it so your account will trade at 40 points below the alert.\n" \
-               f"\n'minimum_account_balance' - This setting will allow you to control the minimum balance your account" \
-               f" must be at before it increases contracts from 1.\n" \
-               f"Example: 'set minimum_account_balance 7000' will make it so your account will trade only 1 contract if" \
-               f" the account balance is below $7000.\n" \
-               f"\n'contract_coefficient'  -  This is the amount of money that equates to 1 contract being traded on your account." \
-               f" This by default is set to $5000. This means that your account will trade 3 contracts if you have a balance of " \
-               f"$15,000.\n" \
-               f"Example: 'set contract_coefficient 3500' will make it so that your account will trade 10 contracts if your " \
-               f"account balance is $35,000."
+    response = discord.Embed(
+        title="Help Interface - Trading Bot v2",
+        description="Interact with your trading bot using the following commands!\n"
+                    "\n**Commands**",
+        color=0x00ff00)
+    response.add_field(name="deactivate", value="Toggles your trading bot off.")
+    response.add_field(name="activate", value="Toggles your trading bot on.")
+    response.add_field(name="info", value="Returns the current settings of your account.")
+    response.add_field(name="set [Toggle] [Value]", value="Allows you to set a specific toggle on your account.", inline=False)
+
+    available_toggles = "- **bearish_put_spread** - Sets the bot to trade against the price notification.\n" \
+                        "  Example: **set bearish_put_spread true** sets your account to bet that the NDX100 will close below the price notification.\n" \
+                        "- **entry_offset** - Controls how much lower or higher your spread will be from the alert notification.\n" \
+                        "  Example: **set entry_offset -40** sets your account to trade at 40 points below the alert.\n" \
+                        "- **minimum_account_balance **- Sets the minimum balance your account must be at before it increases contracts from 1.\n" \
+                        "  Example: **set minimum_account_balance 7000** sets your account to only trade 1 contract until an account balance of $7000 is reached.\n" \
+                        "- **contract_coefficient** -  The amount of money that equates to 1 contract being traded on your account. This by default is set to $5000. This means that your account will trade 3 contracts if you have a balance of $15,000.\n" \
+                        "  Example: **set contract_coefficient 3500** sets your account to trade 10 contracts if your account balance is $35,000."
+
+    response.add_field(name="Available Toggles", value=available_toggles, inline=False)
+
+    response = {
+        "content": None,
+        "embed": response
+    }
 
     return response
 
@@ -256,7 +267,7 @@ def send_command_to_trading_bot(discord_username, command):
         success, response = update_user_account(discord_username, "activated", "True")
         if success:
             response = {
-                "content": "The bot has been activated.\n\n",
+                "content": "**The bot has been activated.**\n\n",
                 "embed": get_account_info(discord_username)
             }
 
@@ -264,7 +275,7 @@ def send_command_to_trading_bot(discord_username, command):
         success, response = update_user_account(discord_username, "activated", "False")
         if success:
             response = {
-                "content": "The bot has been deactivated.\n\n",
+                "content": "**The bot has been deactivated.**\n\n",
                 "embed": get_account_info(discord_username)
             }
 
