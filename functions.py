@@ -205,16 +205,26 @@ def send_command_to_trading_bot(discord_username, command):
 
     #  Check if first word is 'set'
     #  if so, check if there are three words total, then perform an update
-    if command[0] == "set" and len(command) == 3:
+    if command[0] == "set":
+        help =  "Command: set [toggle] [value]\n" \
+                       "Example: set minimum_account_balance 7000"
 
-        #  Capitalize true/false so that the endpoint can insert it directly into field
-        if command[2] == "true" or command[2] == "false":
-            command[2] = command[2].capitalize()
+        if len(command) == 3:
+            #  Capitalize true/false so that the endpoint can insert it directly into field
+            if command[2] == "true" or command[2] == "false":
+                command[2] = command[2].capitalize()
 
-        if command[1] == "bearish_put_spread":
-            command[1] = "bearish_bet"
+            if command[1] == "bearish_put_spread":
+                command[1] = "bearish_bet"
 
-        success, response = update_user_account(discord_username, command[1], command[2])
+            success, response = update_user_account(discord_username, command[1], command[2])
+
+            #  If the command was not successful, append the help message below it
+            if not success:
+                response = response + f"\n{help}"
+
+        else:
+            response = help
 
 
     #  if word is help, then return a tutorial.
