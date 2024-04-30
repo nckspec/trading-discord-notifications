@@ -87,7 +87,12 @@ class MyClient(discord.Client):
             if isinstance(message.channel, discord.DMChannel) and message.author != self.user:
                 #  Send the command to the trading bot
                 response = functions.send_command_to_trading_bot(str(message.author), message.content)
-                await message.author.send(response)
+
+                #  If the response is a dictionary, that means it contains an embed.
+                if isinstance(response, dict):
+                    await message.author.send(content=response['content'], embed=response['embed'])
+                else:
+                    await message.author.send(response)
 
         except Exception as ex:
             message = f"Error in MyClient.on_message(): {ex}"

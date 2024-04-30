@@ -6,6 +6,7 @@ import redis
 import os
 import datetime
 import pytz
+import discord
 
 LOGGER = logging.getLogger('discord-logger')
 
@@ -131,90 +132,186 @@ def send_price_notification(url, price):
         message = f"Error in send_price_notification(): {ex}"
         raise Exception(message)
 
+#  Sends a request to the database to change a specified toggle
+def update_user_account(discord_username, toggle, value):
+    try:
+        success = False
+        endpoint = TRADING_BOT_URL + "/accounts/update/set"
 
-def update_user_account(discord_username, parameter, value):
-    endpoint = TRADING_BOT_URL + "/accounts/update/"
-
-    #  format the proper json for the /accounts/update endpoint
-    data = {
-        "discord_username": discord_username,
-        "command": "set",
-        "parameter": {
-            "name": parameter,
+        #  format the proper json for the /accounts/update endpoint
+        data = {
+            "discord_username": discord_username,
+            "toggle": toggle,
             "value": value
         }
-    }
 
-    response = requests.post(endpoint, json=data)
-    return response.json()['message']
+        response = requests.post(endpoint, json=data)
 
+        if response.status_code == 200:
+            success = True
+        else:
+            success = False
 
+        response = response.json()['message']
+        response = f"**{response}**"
+
+        return success, response
+
+    except Exception as ex:
+        message = f"Error in functions.update_user_account(): {ex}"
+        raise Exception(message)
+
+#  Creates an embed containing the help menu for the user
 def get_help():
-    #  format a response that entails all a user needs to run commands on their account
-    response = f"Commands:\n" \
-               f"'info' - This command will return the current settings of your account.\n\n" \
-               f"'set' [Toggle] [Value] - This command will allow you to set a specific setting on your account.\n\n" \
-               f"Here is a list of available settings: \n" \
-               f"\n'entry_offset' - This setting will control how much lower or higher your spread will be from the" \
-               f"alert notification.\n" \
-               f"Example: 'set entry_offset -40' will make it so your account will trade at 40 points below the alert.\n" \
-               f"\n'minimum_account_balance' - This setting will allow you to control the minimum balance your account" \
-               f" must be at before it increases contracts from 1.\n" \
-               f"Example: 'set minimum_account_balance 7000' will make it so your account will trade only 1 contract if" \
-               f" the account balance is below $7000.\n" \
-               f"\n'contract_coefficient'  -  This is the amount of money that equates to 1 contract being traded on your account." \
-               f" This by default is set to $5000. This means that your account will trade 3 contracts if you have a balance of " \
-               f"$15,000.\n" \
-               f"Example: 'set contract_coefficient 3500' will make it so that your account will trade 10 contracts if your " \
-               f"account balance is $35,000."
-    return response
+    try:
+        response = discord.Embed(
+            title="Help Interface - Trading Bot v2",
+            description="Interact with your trading bot using the following commands!\n"
+                        "\n**Commands**",
+            color=0x00ff00)
+        response.add_field(name="deactivate", value="Toggles your trading bot off.")
+        response.add_field(name="activate", value="Toggles your trading bot on.")
+        response.add_field(name="info", value="Returns the current settings of your account.")
+        response.add_field(name="set [Toggle] [Value]", value="Allows you to set a specific toggle on your account.", inline=False)
 
+        available_toggles = "- **bearish_put_spread** - Sets the bot to trade against the price notification.\n" \
+                            "  Example: **set bearish_put_spread true** sets your account to bet that the NDX100 will close below the price notification.\n" \
+                            "- **entry_offset** - Controls how much lower or higher your spread will be from the alert notification.\n" \
+                            "  Example: **set entry_offset -40** sets your account to trade at 40 points below the alert.\n" \
+                            "- **minimum_account_balance **- Sets the minimum balance your account must be at before it increases contracts from 1.\n" \
+                            "  Example: **set minimum_account_balance 7000** sets your account to only trade 1 contract until an account balance of $7000 is reached.\n" \
+                            "- **contract_coefficient** -  The amount of money that equates to 1 contract being traded on your account. This by default is set to $5000. This means that your account will trade 3 contracts if you have a balance of $15,000.\n" \
+                            "  Example: **set contract_coefficient 3500** sets your account to trade 10 contracts if your account balance is $35,000."
+
+        response.add_field(name="Available Toggles", value=available_toggles, inline=False)
+
+        response = {
+            "content": None,
+            "embed": response
+        }
+
+        return response
+    except Exception as ex:
+        message = f"Error in functions.get_help(): {ex}"
+        raise Exception(message)
+
+#  Will format a dictionary with account info into a readable embed
+def format_account_info(account_info: dict):
+    try:
+        formatted_account_info = ""
+        #  Generate account info into discord format
+        for key in account_info:
+            formatted_account_info = formatted_account_info + f"- **{key}:** {account_info[key]}\n"
+
+        #  remove trailing newline
+        formatted_account_info = formatted_account_info.rstrip()
+
+        #  Create the embed
+        account_info_embed = discord.Embed(
+            title=f"Account Info - {account_info['brokerage_username']} - {account_info['brokerage_account_id']}",
+            description="Here is the current toggles set on your trading bot.", color=0x00ff00)
+        account_info_embed.add_field(name="Toggles", value=formatted_account_info)
+
+        return account_info_embed
+    except Exception as ex:
+        message = f"Error in functions.format_account_info(): {ex}"
+        raise Exception(message)
+
+#  This will retrieve the user's account info from the database and format
+#  it into a discord embed
 def get_account_info(discord_username):
-    #  call the /accounts/get endpoint. Get the json and format it into a readable response
-    endpoint = f"{TRADING_BOT_URL}/accounts/get/?username={discord_username}"
+    try:
+        #  call the /accounts/get endpoint. Get the json and format it into a readable response
+        endpoint = f"{TRADING_BOT_URL}/accounts/get/?username={discord_username}"
 
-    response = requests.get(endpoint)
+        response = requests.get(endpoint)
 
-    if response.status_code == 200:
+        if response.status_code == 200:
 
-        response = response.json()
+            response = response.json()
 
-        account_info = f"Account Info:"
-        for key in response:
-            account_info = account_info + f"\n{key} - {response[key]}"
+            discord_embed = format_account_info(response)
 
-        return account_info
-    elif response.status_code == 201:
-        return response.json()['message']
-    else:
-        return None
+            return discord_embed
 
+        elif response.status_code == 201:
+            return response.json()['message']
+        else:
+            return None
+    except Exception as ex:
+        message = f"Error in functions.get_account_info(): {ex}"
+        raise Exception(message)
 
-
+#  This function will interpret the user's commands into a format that the backend
+#  understands.
 def send_command_to_trading_bot(discord_username, command):
-    response = ""
+    try:
+        response = ""
+        success = False
 
-    #  Split the command by spaces
-    command = command.split()
+        #  make the command lowercase and split the command by spaces
+        command = command.lower().split()
 
+        #  Check if first word is 'set'
+        #  if so, check if there are three words total, then perform an update
+        if command[0] == "set":
+            help =  "Command: set [toggle] [value]\n" \
+                           "Example: set minimum_account_balance 7000"
 
-    #  Check if first word is 'set'
-    #  if so, check if there are three words total, then perform an update
-    if command[0] == "set" and len(command) == 3:
-        response = update_user_account(discord_username, command[1], command[2])
+            #  ensure the command has a parameter and value
+            if len(command) == 3:
+                #  Capitalize true/false so that the endpoint can insert it directly into field
+                if command[2] == "true" or command[2] == "false":
+                    command[2] = command[2].capitalize()
 
+                if command[1] == "bearish_put_spread":
+                    command[1] = "bearish_bet"
 
-    #  if word is help, then return a tutorial.
-    elif command[0] == "help" and len(command) == 1:
-        response = get_help()
+                success, response = update_user_account(discord_username, command[1], command[2])
 
+                #  If the command was not successful, append the help message below it
+                if not success:
+                    response = response + f"\n{help}"
+                else:
+                    response = {
+                        "content": response,
+                        "embed": get_account_info(discord_username)
+                    }
 
-    #  if word is info then return the account info
-    elif command[0] == "info" and len(command) == 1:
-        response = get_account_info(discord_username)
+            else:
+                response = help
 
+        #  if word is help, then return a tutorial.
+        elif command[0] == "help" and len(command) == 1:
+            response = get_help()
 
-    else:
-        response = f"That is not a valid command. Please type 'help' into the chat for instructions."
+        #  if word is info then return the account info
+        elif command[0] == "info" and len(command) == 1:
+            response = {
+                "content": None,
+                "embed": get_account_info(discord_username)
+            }
 
-    return response
+        elif command[0] == "activate" and len(command) == 1:
+            success, response = update_user_account(discord_username, "activated", "True")
+            if success:
+                response = {
+                    "content": "**The bot has been activated.**\n\n",
+                    "embed": get_account_info(discord_username)
+                }
+
+        elif command[0] == "deactivate" and len(command) == 1:
+            success, response = update_user_account(discord_username, "activated", "False")
+            if success:
+                response = {
+                    "content": "**The bot has been deactivated.**\n\n",
+                    "embed": get_account_info(discord_username)
+                }
+
+        else:
+            response = f"That is not a valid command. Please type 'help' into the chat for instructions."
+
+        return response
+    except Exception as ex:
+        message = f"Error in functions.send_command_to_trading_bot(): {ex}"
+        raise Exception(message)
