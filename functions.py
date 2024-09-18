@@ -182,8 +182,11 @@ def get_help():
                             "  Example: **set minimum_account_balance 7000** sets your account to only trade 1 contract until an account balance of $7000 is reached.\n" \
                             "- **contract_coefficient** -  The amount of money that equates to 1 contract being traded on your account. This by default is set to $5000. This means that your account will trade 3 contracts if you have a balance of $15,000.\n" \
                             "  Example: **set contract_coefficient 3500** sets your account to trade 10 contracts if your account balance is $35,000."
+        new_toggles = "- **limit_price** - The limit price that is defined for the trade.\n" \
+                      "  Example: **set limit_price 5.0**"
 
         response.add_field(name="Available Toggles", value=available_toggles, inline=False)
+        response.add_field(name="New Toggles", value=new_toggles, inline=False)
 
         response = {
             "content": None,
